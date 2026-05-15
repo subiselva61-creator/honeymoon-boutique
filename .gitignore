@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Next.js / build
+.next/
+out/
+.vercel/
+
+# Local env files (templates use .env.example)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs & debug
+*.log
+npm-debug.log*
+.DS_Store
+
+# SQLite & uploaded media (local dev only — add via CMS in production)
+payload/payload.db
+payload/payload.db-journal
+payload/public/media/*
+**/public/media/*
+
+# Turbopack cache
+.turbo/

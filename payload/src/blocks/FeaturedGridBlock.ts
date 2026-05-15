@@ -1,0 +1,1 @@
+export { FeaturedGridBlock } from './index'
