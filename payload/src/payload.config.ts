@@ -61,25 +61,48 @@ const trustedOrigins = Array.from(
   ),
 )
 
-const databaseUri = process.env.DATABASE_URI?.trim()
-
 function getDatabase() {
-  if (databaseUri && (databaseUri.startsWith('postgres') || databaseUri.startsWith('postgresql'))) {
+  const uri = process.env.DATABASE_URI?.trim()
+  const onVercel = process.env.VERCEL === '1'
+
+  const isPostgres =
+    !!uri &&
+    (uri.startsWith('postgres') || uri.startsWith('postgresql')) &&
+    /^postgres(ql)?:\/\//i.test(uri)
+
+  const isSqliteFile = !!uri && (uri.startsWith('file:') || uri === ':memory:')
+
+  if (isPostgres && uri) {
     return postgresAdapter({
       pool: {
-        connectionString: databaseUri,
+        connectionString: uri,
       },
       // Turn off with PAYLOAD_DATABASE_PUSH=false after adopting SQL migrations.
       push: process.env.PAYLOAD_DATABASE_PUSH !== 'false',
     })
   }
 
+  if (isSqliteFile && uri) {
+    return sqliteAdapter({
+      client: { url: uri },
+    })
+  }
+
+  if (onVercel) {
+    throw new Error(
+      'DATABASE_URI on Vercel must be a real PostgreSQL URL (postgresql://…) from Neon, Vercel Postgres, etc. SQLite file paths do not persist on serverless.',
+    )
+  }
+
+  if (uri && !isSqliteFile) {
+    throw new Error(
+      `Invalid DATABASE_URI: expected postgresql://… or sqlite file:/:memory:, not "${uri.slice(0, 48)}${uri.length > 48 ? '…' : ''}". Remove placeholders like your_postgres_url_here from env.`,
+    )
+  }
+
   return sqliteAdapter({
     client: {
-      url:
-        databaseUri && databaseUri.length > 0
-          ? databaseUri
-          : `file:${path.resolve(dirname, '../payload.db')}`,
+      url: `file:${path.resolve(dirname, '../payload.db')}`,
     },
   })
 }
