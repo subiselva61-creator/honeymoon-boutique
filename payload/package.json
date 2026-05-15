@@ -13,6 +13,7 @@
     "generate:graphQLSchema": "payload generate:graphQLSchema"
   },
   "dependencies": {
+    "@payloadcms/db-postgres": "^3.84.1",
     "@payloadcms/db-sqlite": "^3.0.0",
     "@payloadcms/next": "^3.0.0",
     "@payloadcms/plugin-form-builder": "^3.0.0",
@@ -22,6 +23,7 @@
     "graphql": "^16.8.1",
     "next": "^15.0.0",
     "payload": "^3.0.0",
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "0.32.6"

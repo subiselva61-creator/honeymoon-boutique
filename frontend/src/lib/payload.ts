@@ -1,6 +1,6 @@
 import qs from 'qs'
 
-const PAYLOAD_URL = process.env.PAYLOAD_API_URL || 'http://localhost:3001/api'
+const PAYLOAD_URL = process.env.PAYLOAD_API_URL || 'http://localhost:3002/api'
 
 type FetchOptions = {
   depth?: number
@@ -25,14 +25,13 @@ async function payloadFetch<T>(
 
   const url = `${PAYLOAD_URL}${path}${query}`
 
-  const nextOpts: RequestInit = {}
+  const nextOpts: RequestInit & { next?: { revalidate?: number | false; tags?: string[] } } = {}
   if (cache) nextOpts.cache = cache
+  const tag = process.env.REVALIDATE_TAG || 'cms'
   if (revalidate !== undefined) {
-    // @ts-ignore
-    nextOpts.next = { revalidate }
+    nextOpts.next = { revalidate, tags: [tag] }
   } else {
-    // @ts-ignore
-    nextOpts.next = { revalidate: 60 }
+    nextOpts.next = { revalidate: 60, tags: [tag] }
   }
 
   const res = await fetch(url, nextOpts)
@@ -131,11 +130,14 @@ export async function getSiteSettings() {
 
 export function getMediaUrl(media: any, size?: string): string {
   if (!media) return '/placeholder.jpg'
-  const PAYLOAD_BASE = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3001'
-  if (size && media.sizes?.[size]?.url) {
-    return `${PAYLOAD_BASE}${media.sizes[size].url}`
+  const sized = size && media.sizes?.[size]?.url
+  const pathOrUrl = sized || media.url
+  if (typeof pathOrUrl !== 'string' || pathOrUrl.length === 0) return '/placeholder.jpg'
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    return pathOrUrl
   }
-  return `${PAYLOAD_BASE}${media.url}`
+  const PAYLOAD_BASE = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3002'
+  return `${PAYLOAD_BASE}${pathOrUrl}`
 }
 
 // ─── Forms ────────────────────────────────────────────────────────────────────

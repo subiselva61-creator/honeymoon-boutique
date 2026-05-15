@@ -1,7 +1,9 @@
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { uploadthingStorage } from '@payloadcms/storage-uploadthing'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import path from 'path'
@@ -19,6 +21,7 @@ import { Users } from './collections/Users'
 import { Header } from './globals/Header'
 import { Footer } from './globals/Footer'
 import { SiteSettings } from './globals/SiteSettings'
+import { revalidateFrontendPlugin } from './plugins/revalidateFrontend'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -58,6 +61,29 @@ const trustedOrigins = Array.from(
   ),
 )
 
+const databaseUri = process.env.DATABASE_URI?.trim()
+
+function getDatabase() {
+  if (databaseUri && (databaseUri.startsWith('postgres') || databaseUri.startsWith('postgresql'))) {
+    return postgresAdapter({
+      pool: {
+        connectionString: databaseUri,
+      },
+      // Turn off with PAYLOAD_DATABASE_PUSH=false after adopting SQL migrations.
+      push: process.env.PAYLOAD_DATABASE_PUSH !== 'false',
+    })
+  }
+
+  return sqliteAdapter({
+    client: {
+      url:
+        databaseUri && databaseUri.length > 0
+          ? databaseUri
+          : `file:${path.resolve(dirname, '../payload.db')}`,
+    },
+  })
+}
+
 export default buildConfig({
   sharp,
   serverURL,
@@ -76,11 +102,7 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: sqliteAdapter({
-    client: {
-      url: process.env.DATABASE_URI || `file:${path.resolve(dirname, '../payload.db')}`,
-    },
-  }),
+  db: getDatabase(),
   cors: trustedOrigins,
   csrf: trustedOrigins,
   upload: {
@@ -89,6 +111,17 @@ export default buildConfig({
     },
   },
   plugins: [
+    uploadthingStorage({
+      collections: {
+        media: true,
+      },
+      clientUploads: true,
+      enabled: Boolean(process.env.UPLOADTHING_TOKEN?.trim()),
+      options: {
+        acl: 'public-read',
+        token: process.env.UPLOADTHING_TOKEN || '',
+      },
+    }),
     seoPlugin({
       collections: ['pages', 'destinations', 'experiences'],
       uploadsCollection: 'media',
@@ -111,5 +144,6 @@ export default buildConfig({
       },
       redirectRelationships: ['pages'],
     }),
+    revalidateFrontendPlugin(),
   ],
 })
